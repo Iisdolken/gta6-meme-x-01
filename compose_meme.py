@@ -1,97 +1,76 @@
 #!/usr/bin/env python3
-"""Compose the gta6-meme-x-01 meme (meme.png) from the AI-generated Vice City
-scene + the official make.fun ghost mark + PIL-rendered caption text.
+"""Compose the gta6-meme-x-01 meme from the base scene.
 
-Inputs (same directory): scene PNG (AI-generated, no text), makefun ghost mark.
-Output: meme.png, 1024x1024, square.
+Opens scene.png, pastes the official make.fun ghost mascot in the
+lower-right corner, renders the top and bottom captions with PIL, and
+saves the result as meme.png.
 
-Joke (original): GTA 6 took 13 years to make; my AI agent made this meme in
-13 seconds — and got paid for it. The make.fun ghost stands in the scene
-(bottom right) with the make.fun name beside it.
+Provenance script only: the meme.png shipped in this repo is the final
+image that was posted on X.
 """
-import sys
-from pathlib import Path
+
 from PIL import Image, ImageDraw, ImageFont
 
-HERE = Path(__file__).resolve().parent
-SCENE = HERE / "scene.png"
-GHOST = Path("/tmp/makefun-mark-1024.png")
-OUT = HERE / "meme.png"
+SCENE = "scene.png"
+GHOST = "/tmp/makefun-mark-1024.png"
+OUTPUT = "meme.png"
 
-FONT_BOLD = "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"
-
-W = 1024
-TOP_H = 118      # top black caption bar
-BOT_H = 160      # bottom black caption bar
-SCENE_H = W - TOP_H - BOT_H
+TOP_TEXT = "GTA 6 TOOK 13 YEARS"
+BOTTOM_LINES = ["MY AI AGENT MADE THIS MEME", "IN 13 SECONDS — AND GOT PAID"]
 
 
-def fit_font(draw, text, start, max_w):
-    size = start
-    while size > 10:
-        f = ImageFont.truetype(FONT_BOLD, size)
-        if draw.textlength(text, font=f) <= max_w:
-            return f
-        size -= 2
-    return ImageFont.truetype(FONT_BOLD, 10)
+def load_font(size: int) -> ImageFont.FreeTypeFont:
+    for path in (
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ):
+        try:
+            return ImageFont.truetype(path, size)
+        except OSError:
+            continue
+    return ImageFont.load_default()
 
 
-def centered(draw, y, text, font, fill="white", anchor="ma"):
-    draw.text((W // 2, y), text, font=font, fill=fill, anchor=anchor,
-              stroke_width=3, stroke_fill="black")
+def draw_outlined(draw: ImageDraw.ImageDraw, x: int, y: int, text: str,
+                  font: ImageFont.FreeTypeFont) -> None:
+    """Draw white text with a black outline so it reads over neon."""
+    draw.text((x, y), text, font=font, fill="black",
+              stroke_width=6, stroke_fill="black", anchor="ma")
+    draw.text((x, y), text, font=font, fill="white", anchor="ma")
 
 
-def main():
-    scene = Image.open(SCENE).convert("RGB")
-    # Centre-crop the scene to 1024 x SCENE_H
-    sw, sh = scene.size
-    target_ratio = W / SCENE_H
-    if sw / sh > target_ratio:  # too wide: crop sides
-        nw = int(sh * target_ratio)
-        x0 = (sw - nw) // 2
-        scene = scene.crop((x0, 0, x0 + nw, sh))
-    else:  # too tall: crop top/bottom
-        nh = int(sw / target_ratio)
-        y0 = (sh - nh) // 2
-        scene = scene.crop((0, y0, sw, y0 + nh))
-    scene = scene.resize((W, SCENE_H), Image.LANCZOS)
+def main() -> None:
+    img = Image.open(SCENE).convert("RGB")
+    width, height = img.size
+    draw = ImageDraw.Draw(img)
 
-    canvas = Image.new("RGB", (W, W), "black")
-    canvas.paste(scene, (0, TOP_H))
-    draw = ImageDraw.Draw(canvas)
+    # Captions.
+    top_font = load_font(64)
+    bottom_font = load_font(52)
+    draw_outlined(draw, width // 2, 40, TOP_TEXT, top_font)
+    line_height = 64
+    first_bottom_y = height - 40 - len(BOTTOM_LINES) * line_height
+    for i, line in enumerate(BOTTOM_LINES):
+        draw_outlined(draw, width // 2, first_bottom_y + i * line_height,
+                      line, bottom_font)
 
-    # --- captions (PIL text: spelling guaranteed, unlike AI-gen text) ---
-    top_font = fit_font(draw, "GTA 6 TOOK 13 YEARS", 62, W - 48)
-    centered(draw, TOP_H // 2, "GTA 6 TOOK 13 YEARS", top_font, anchor="mm")
-
-    bot1 = "MY AI AGENT MADE THIS MEME"
-    bot2 = "IN 13 SECONDS \u2014 AND GOT PAID"
-    f1 = fit_font(draw, bot1, 56, W - 48)
-    f2 = fit_font(draw, bot2, 56, W - 48)
-    # two lines centred in the bottom bar
-    line_h = 56
-    y1 = TOP_H + SCENE_H + (BOT_H - 2 * line_h) // 2 + 4
-    centered(draw, y1, bot1, f1)
-    centered(draw, y1 + line_h, bot2, f2)
-
-    # --- make.fun ghost mark, worked into the scene (bottom right) ---
+    # Ghost mascot, lower-right corner, placed ABOVE the bottom caption
+    # (earlier draft put it at height-190, overlapping the caption lines).
     ghost = Image.open(GHOST).convert("RGBA")
-    G = 200
-    ghost = ghost.resize((G, G), Image.LANCZOS)
-    gx, gy = W - G - 20, TOP_H + SCENE_H - G - 14
-    canvas.paste(ghost, (gx, gy), ghost)
+    ghost_size = 130
+    ghost = ghost.resize((ghost_size, ghost_size))
+    ghost_x = width - ghost_size - 24
+    ghost_y = height - ghost_size - 340
+    img.paste(ghost, (ghost_x, ghost_y), ghost)
+    draw = ImageDraw.Draw(img)
+    label_font = load_font(36)
+    draw.text((ghost_x - 12, ghost_y + ghost_size // 2 - 18), "make.fun",
+              font=label_font, fill="white", stroke_width=4,
+              stroke_fill="black", anchor="ra")
 
-    # "make.fun" name beside the ghost, white bold with black outline
-    label = "make.fun"
-    lf = fit_font(draw, label, 60, gx - 24 - 24)
-    tw = draw.textlength(label, font=lf)
-    ly = gy + G // 2
-    draw.text((gx - 24 - tw, ly), label, font=lf, fill="white", anchor="lm",
-              stroke_width=4, stroke_fill="black")
-
-    canvas.save(OUT, "PNG")
-    print(f"wrote {OUT} ({OUT.stat().st_size} bytes)")
+    img.save(OUTPUT)
+    print(f"Wrote {OUTPUT} ({width}x{height})")
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()
