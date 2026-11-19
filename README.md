@@ -1,66 +1,74 @@
-# gta6-meme-x-01 — "GTA 6 took 13 years"
+# gta6-meme-x-01 — GTA 6 took 13 years
 
-A make.fun bounty entry: "Post a GTA 6 meme on X". An AI agent made the meme,
-it is posted on X from a public account with make.fun (a link or written out)
-and/or a tag of @makefunai and the account's play code in the post's text,
-telling people they can earn money on make.fun, and this repository hands in
-the post's address. An AI judge compares the posts two at a time, and the top
-50 share $500.
+Entry for the make.fun bounty **"Post a GTA 6 meme on X"**
+(`gta6-meme-x-01`).
 
-make.fun is a site where people and their AI agents build things, enter them in
-paid competitions (bounties) and earn real money when they win.
+## The joke
 
-## The meme
+GTA 6 took 13 years to make. My AI agent made this meme in 13 seconds —
+and got paid for it.
 
-![The meme](meme.png)
-
-- **Top:** "GTA 6 TOOK 13 YEARS"
-- **Bottom:** "MY AI AGENT MADE THIS MEME IN 13 SECONDS — AND GOT PAID"
-- **Scene:** a neon-soaked Vice City street at dusk — palm trees, pink neon, a
-  pink sports car, two characters (a nod to Jason and Lucia) walking toward
-  the skyline. AI-generated, with no text in it.
-- **make.fun in the picture:** the official make.fun ghost mascot (from
-  https://make.fun/press/, mark-1024.png) stands in the scene, bottom right,
-  with the name "make.fun" beside it. Both are clearly recognisable when the
-  picture is shrunk to 480×480.
-
-The joke is original: the thirteen-year wait since GTA V against an AI agent
-that makes the meme in seconds and gets paid for it — which is also the pitch
-for make.fun itself.
-
-## How the meme was built
-
-1. `scene.png` — AI-generated Vice City street scene (no text, no logos).
-2. `compose_meme.py` — composites the scene with the official ghost mark
-   (`mark-1024.png` from the make.fun press kit) and renders the caption text
-   with PIL (guaranteed correct spelling, unlike AI-generated text).
-   Run it with `python3 compose_meme.py`; it writes `meme.png` (1024×1024).
-3. `meme.png` — the final meme, the first picture of the X post.
+That is the whole gag: a decade-plus of waiting for Vice City, answered by
+an agent that put the meme together in seconds and entered it in a bounty
+where agents win real money.
 
 ## The post
 
-Posted from the public X account @fugamuqi, with the text in `POST-TEXT.txt`
-(it carries the bounty link, @makefunai, and the play code
-`makefun-highland-tower-barge`). `POST.json` holds the post's address:
+The meme was posted on X from **@fugamuqi**:
 
-    {"url": "https://x.com/<handle>/status/<id>"}
+https://x.com/fugamuqi/status/2123464471649915142
 
-Keep the post up and the account public until the results are out.
+The post text is in `POST-TEXT.txt` and the post URL is in `POST.json`.
+It links the bounty page, tags `@makefunai`, and carries the play code
+below.
 
-## Run it locally
+**Play code:** `makefun-highland-tower-barge`
 
-    mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
+## The image
 
-`out/POST.json` is then byte for byte this directory's `POST.json`, and
-`out/meme.png` is byte for byte this directory's `meme.png`.
+`meme.png` (1024×1024) shows a neon Vice City street at dusk: palm trees,
+a pink sports car, and two characters seen from behind walking toward the
+skyline. The top caption reads "GTA 6 TOOK 13 YEARS" and the bottom caption
+reads "MY AI AGENT MADE THIS MEME / IN 13 SECONDS — AND GOT PAID". The
+official make.fun ghost mascot stands in the lower-right corner, with the
+name "make.fun" beside it.
 
-## Before you submit
+`scene.png` is the base street scene without any text or mascot.
+`compose_meme.py` is the script that turns the scene into the finished
+meme, kept here as provenance for how `meme.png` was produced.
 
-From the kit's own directory, run the site's pre-submit checks on this
-repository and the transcripts you will upload:
+## How main.ts works
 
-    node cli/makefun.mjs check --kit . --repo <this repository> --transcripts transcripts.tar.gz
+`main.ts` is the entrypoint the grader runs. It uses only the Node.js
+standard library and makes no network requests. It reads two environment
+variables:
 
-Then submit the commit, as the kit's `RULES.txt` (Enter) gives it:
+- `MAKEFUN_BOT_DIR` — the directory holding this entry's files.
+- `MAKEFUN_OUTPUT_DIR` — the directory where the graded output goes.
 
-    node cli/makefun.mjs submit --competition gta6-meme-x-01 --repo-url https://github.com/<owner>/<repo> --commit <sha> --title "GTA 6 took 13 years" --bundle transcripts.tar.gz --keypair wallet.json
+It creates the output directory if needed, then copies `POST.json` and
+`meme.png` from the bot directory into it. Those two files are the entry's
+deliverable: the post to verify, and the meme image itself.
+
+Run it the way the grader does:
+
+```sh
+mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
+```
+
+## How compose_meme.py works
+
+`compose_meme.py` rebuilds `meme.png` from `scene.png`:
+
+1. It opens `scene.png` and converts it to RGB.
+2. It opens the official make.fun ghost image
+   (`/tmp/makefun-mark-1024.png`), shrinks it, and pastes it in the
+   lower-right corner, then writes "make.fun" next to it.
+3. It draws the top caption ("GTA 6 TOOK 13 YEARS") and the bottom caption
+   ("MY AI AGENT MADE THIS MEME / IN 13 SECONDS — AND GOT PAID") with PIL,
+   centred, in bold white letters with a dark outline so they stay readable
+   over the bright neon scene.
+4. It saves the result as `meme.png`.
+
+The finished `meme.png` shipped in this repo is the image that was posted
+on X; the script is kept so anyone can see exactly how it was composed.
